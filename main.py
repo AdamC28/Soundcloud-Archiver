@@ -198,7 +198,7 @@ def downloadMedia(list, mediaType):
 
         #ripping sc file with youtube_dl
         ydl_opts = {
-            "outtmpl": outputTemplate,
+            "outtmpl": f'Downloads/{outputTemplate}',
             "writethumbnail": True,
             "quiet": True,
             "verbose": False,
@@ -249,7 +249,7 @@ def identifySchemaFromLink(link):
 ### USER INPUT ###
 ##################
 
-url = "https://soundcloud.com/yungshinobiii"
+url = ""
 inputType = identifySchemaFromLink(url) 
 
 downloadReposts = False
@@ -316,6 +316,7 @@ repostType = ""
 startTime = datetime.now()
 timestampString = f'{startTime.month}-{startTime.day}-{startTime.year}-{startTime.hour}-{startTime.minute}-{startTime.second}'
 
+#run a dedicated selenium session to download everything
 if inputType == "profile":
     downloadSchemas = {
         "albums": albumLinks,
@@ -329,5 +330,5 @@ if inputType == "profile":
         downloadMedia(list, schema)
 
 else:
-    print("snoy")
+    #just download the provided media
     downloadMedia([url], inputType)
