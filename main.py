@@ -69,6 +69,11 @@ def id3tag(path, metadata, trackNum):
         
         global scrapeData
 
+        print("ker-SNAVY!")
+
+        print(scrapeData["trackName"])
+        print(scrapeData['artistName'])
+
         #id3 tagging / cover art embedding
         testAudio = mp3.MP3(path)
         testAudio.tags = id3.ID3()
@@ -83,10 +88,10 @@ def id3tag(path, metadata, trackNum):
             testAudio["TALB"] = id3.TALB(encoding=3, text=f"{scrapeData['artistName']} Soundcloud Files")
 
             #artist
-            testAudio['TPE1'] = id3.TALB(encoding=3, text=f"{scrapeData['artistName']}")
+            testAudio['TPE1'] = id3.TPE1(encoding=3, text=f"{scrapeData['artistName']}")
 
             #album artist
-            testAudio['TPE2'] = id3.TALB(encoding=3, text=f"{scrapeData['artistName']}")
+            testAudio['TPE2'] = id3.TPE2(encoding=3, text=f"{scrapeData['artistName']}")
 
             #track num
             testAudio['TRCK'] = id3.TRCK(encoding=3, text="")
@@ -138,6 +143,7 @@ def id3tag(path, metadata, trackNum):
 
         testAudio.save()
 
+#downloads content and triggers id3tag helper method as part of youtube-dl hook
 def downloadMedia(list, mediaType):
     for link in list:
 
@@ -228,59 +234,75 @@ def downloadMedia(list, mediaType):
         #sleep for 3 seconds between successful track rip to minimize bandwidth usage
         time.sleep(3)
 
+#helper method to identify whether a html session is necessary for scraping an input release
+def identifySchemaFromLink(link):
+    linkSplit = link.split("/")
+
+    if len(linkSplit) == 4:
+        return "profile"
+    elif linkSplit[4] == 'sets':
+        return "sets"
+    else:
+        return "tracks"
+
 ##################
 ### USER INPUT ###
 ##################
 
-url = ""
-downloadReposts = True
+url = "https://soundcloud.com/yungshinobiii"
+inputType = identifySchemaFromLink(url) 
+
+downloadReposts = False
+
+# a track can probably be ripped without using a selenium session
 
 #######################
 ### WEBDRIVER SETUP ###
 #######################
 
-options = webdriver.ChromeOptions()
-options.add_argument("--start-maximized")
-options.add_argument("headless")
-options.add_argument("--log-level=OFF")
+if inputType == "profile":
+    options = webdriver.ChromeOptions()
+    options.add_argument("--start-maximized")
+    options.add_argument("headless")
+    options.add_argument("--log-level=OFF")
 
-driver = webdriver.Chrome(options=options)
-driver.get(url)
-driver.execute_script("document.body.style.zoom='80%'")
+    driver = webdriver.Chrome(options=options)
+    driver.get(url)
+    driver.execute_script("document.body.style.zoom='80%'")
 
-wait = WebDriverWait(driver, 10)
-wait.until(EC.element_to_be_clickable((By.ID, "onetrust-reject-all-handler"))).click()
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.element_to_be_clickable((By.ID, "onetrust-reject-all-handler"))).click()
 
-time.sleep(2)
-profileName = driver.find_element(By.XPATH, '//*[@id="content"]/div/div[2]/div/div[1]/div/div[2]/h2').text
+    time.sleep(2)
+    profileName = driver.find_element(By.XPATH, '//*[@id="content"]/div/div[2]/div/div[1]/div/div[2]/h2').text
 
-try:
-    verified = driver.find_element(By.XPATH, '//*[@id="content"]/div/div[2]/div/div[1]/div/div[2]/h2/div/span/span')
-except NoSuchElementException:
-    print("Profile is not verified!")
-else:
-    profileName = " ".join(profileName.split(" ")[:-1])
+    try:
+        verified = driver.find_element(By.XPATH, '//*[@id="content"]/div/div[2]/div/div[1]/div/div[2]/h2/div/span/span')
+    except NoSuchElementException:
+        print("Profile is not verified!")
+    else:
+        profileName = " ".join(profileName.split(" ")[:-1])
 
-print(profileName)
+    print(profileName)
 
-albumLinks = []
-playlistLinks = []
-trackLinks = []
-mainXpath = '//*[@id="content"]/div/div[4]/div[1]/div/div[2]/div/ul/li/div/div/div[2]/div[1]/div/div/div[2]/a'
+    albumLinks = []
+    playlistLinks = []
+    trackLinks = []
+    mainXpath = '//*[@id="content"]/div/div[4]/div[1]/div/div[2]/div/ul/li/div/div/div[2]/div[1]/div/div/div[2]/a'
 
-repostLinks = []
-repostXpath = '//*[@id="content"]/div/div[4]/div[1]/div/div[2]/div/ul/li/div/div/div/div[2]/div[1]/div/div/div[2]/a'
+    repostLinks = []
+    repostXpath = '//*[@id="content"]/div/div[4]/div[1]/div/div[2]/div/ul/li/div/div/div/div[2]/div[1]/div/div/div[2]/a'
 
-print("--- Getting main media ---")
-get_media_links(f'{url}/albums', albumLinks, mainXpath)
-get_media_links(f'{url}/sets', playlistLinks, mainXpath)
-get_media_links(f'{url}/tracks', trackLinks, mainXpath)
+    print("--- Getting main media ---")
+    get_media_links(f'{url}/albums', albumLinks, mainXpath)
+    get_media_links(f'{url}/sets', playlistLinks, mainXpath)
+    get_media_links(f'{url}/tracks', trackLinks, mainXpath)
 
-if downloadReposts:
-    print("--- Getting reposts ---")
-    get_media_links(f'{url}/reposts', repostLinks, repostXpath)
+    if downloadReposts:
+        print("--- Getting reposts ---")
+        get_media_links(f'{url}/reposts', repostLinks, repostXpath)
 
-driver.quit()
+    driver.quit()
 
 ################
 ### DOWNLOAD ###
@@ -294,13 +316,18 @@ repostType = ""
 startTime = datetime.now()
 timestampString = f'{startTime.month}-{startTime.day}-{startTime.year}-{startTime.hour}-{startTime.minute}-{startTime.second}'
 
-downloadSchemas = {
-    "albums": albumLinks,
-    "sets": playlistLinks,
-    "tracks": trackLinks
-}
-if downloadReposts:
-    downloadSchemas["reposts"] = repostLinks
+if inputType == "profile":
+    downloadSchemas = {
+        "albums": albumLinks,
+        "sets": playlistLinks,
+        "tracks": trackLinks
+    }
+    if downloadReposts:
+        downloadSchemas["reposts"] = repostLinks
 
-for schema, list in downloadSchemas.items():
-    downloadMedia(list, schema)
+    for schema, list in downloadSchemas.items():
+        downloadMedia(list, schema)
+
+else:
+    print("snoy")
+    downloadMedia([url], inputType)
