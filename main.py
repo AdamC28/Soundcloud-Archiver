@@ -44,7 +44,6 @@ def get_media_links(url, linkList, xpath):
     for link in media:
         linkValue = link.get_attribute('href')
         linkList.append(linkValue)
-        #print(linkValue)
 
 #function to substitute problematic characters from filenames
 def sanitizeString(string):
@@ -69,10 +68,8 @@ def id3tag(path, metadata, trackNum):
         
         global scrapeData
 
-        print("ker-SNAVY!")
-
-        print(scrapeData["trackName"])
-        print(scrapeData['artistName'])
+        #print(scrapeData["trackName"])
+        #print(scrapeData['artistName'])
 
         #id3 tagging / cover art embedding
         testAudio = mp3.MP3(path)
@@ -178,8 +175,7 @@ def downloadMedia(list, mediaType):
         sanitizedTitle = sanitizeString(trackName)
         sanitizedArtist = sanitizeString(artistName)
 
-        print(f'{artistName} - {sanitizedArtist}')
-        print(f'{trackName} - {sanitizedTitle}')
+        print(f'{sanitizedArtist} - {sanitizedTitle}')
 
         if mediaType == "albums":
             outputTemplate = f'{str(sanitizedArtist)}/Albums/{str(sanitizedTitle)}/{str(sanitizeString("%(title)s"))}.%(ext)s'
@@ -249,7 +245,7 @@ def identifySchemaFromLink(link):
 ### USER INPUT ###
 ##################
 
-url = ""
+url = "https://soundcloud.com/deerxgod/sets/mistaken"
 inputType = identifySchemaFromLink(url) 
 
 downloadReposts = False
