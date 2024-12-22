@@ -4,7 +4,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
-from requests_html import HTMLSession
 from bs4 import BeautifulSoup
 import requests
 from mutagen import id3, mp3
@@ -45,12 +44,12 @@ def get_media_links(url, linkList, xpath):
         linkValue = link.get_attribute('href')
         linkList.append(linkValue)
 
-#function to substitute problematic characters from filenames
+#substitutes escape / otherwise troublesome characters from filenames
 def sanitizeString(string):
     table = str.maketrans("/\\<>|$", "-_()-S", ":*?\"")
     return string.translate(table)
 
-#hook function which automatically tags a file ripped by youtube_dl with MP3 metadata
+#youtube_dl hook function which automatically tags a file with MP3 metadata after ripping
 def myHook(d):
         global trackIndex, info_dict
 
@@ -63,13 +62,10 @@ def myHook(d):
                 id3tag(d['filename'], info_dict['entries'][trackIndex], trackIndex)
             trackIndex += 1
 
-#function with assigns specific MP3 metadata to each ripped file, based on what media type is being downloaded
+#assigns specific MP3 metadata to each ripped file, based on what media type is being downloaded
 def id3tag(path, metadata, trackNum):
         
         global scrapeData
-
-        #print(scrapeData["trackName"])
-        #print(scrapeData['artistName'])
 
         #id3 tagging / cover art embedding
         testAudio = mp3.MP3(path)
@@ -143,14 +139,12 @@ def id3tag(path, metadata, trackNum):
 #downloads content and triggers id3tag helper method as part of youtube-dl hook
 def downloadMedia(list, mediaType):
     for link in list:
-
-        print(f"Downloading {link}")
+        
+        #timestamps download process for individual release
+        print(f"Downloading {link} ({time.time()})")
 
         global scrapeData, trackIndex
         repostType = ""
-
-        #timestamping
-        scrapeTime = time.time()
 
         source = requests.get(link)
 
@@ -194,7 +188,7 @@ def downloadMedia(list, mediaType):
 
         #ripping sc file with youtube_dl
         ydl_opts = {
-            "outtmpl": f'Downloads/{outputTemplate}',
+            "outtmpl": f'{outputDir}/{outputTemplate}',
             "writethumbnail": True,
             "quiet": True,
             "verbose": False,
@@ -230,7 +224,7 @@ def downloadMedia(list, mediaType):
         #sleep for 3 seconds between successful track rip to minimize bandwidth usage
         time.sleep(3)
 
-#helper method to identify whether a html session is necessary for scraping an input release
+#helper method to identify whether a html session is necessary for scraping input
 def identifySchemaFromLink(link):
     linkSplit = link.split("/")
 
@@ -245,16 +239,21 @@ def identifySchemaFromLink(link):
 ### USER INPUT ###
 ##################
 
-url = "https://soundcloud.com/deerxgod/sets/mistaken"
-inputType = identifySchemaFromLink(url) 
+#SET THIS TO THE RELEASE/PROFILE YOU WANT TO ARCHIVE
+url = ""
 
+#IF YOU WANT TO CHANGE THE DIRECTORY TO WHICH RIPS ARE WRITTEN, CHANGE THIS TO A DIFFERENT PATH
+#ALSO REFLECTED IN .GITIGNORE (PLEASE BE MINDFUL IF FORKING / PUSHING / ETC.!)
+outputDir = "Downloads"
+
+#IF ARCHIVING A PROFILE, THIS WILL ALSO RIP ALL REPOSTED MEDIA IF SET TO "TRUE"
 downloadReposts = False
-
-# a track can probably be ripped without using a selenium session
 
 #######################
 ### WEBDRIVER SETUP ###
 #######################
+
+inputType = identifySchemaFromLink(url) 
 
 if inputType == "profile":
     options = webdriver.ChromeOptions()
@@ -304,13 +303,20 @@ if inputType == "profile":
 ### DOWNLOAD ###
 ################
 
+#contains metadata automatically scraped by youtube-dl for a given link
 info_dict = None
-trackIndex = 0
+#contains metadata from scraping which is useful for release tagging
 scrapeData = None
+#helps dynamically change nested directory structure for reposts
 repostType = ""
+#represents track numbers for multi-track releases
+trackIndex = 0
 
+#timestamps runtime as a whole
 startTime = datetime.now()
 timestampString = f'{startTime.month}-{startTime.day}-{startTime.year}-{startTime.hour}-{startTime.minute}-{startTime.second}'
+
+print(f"Starting archival... {timestampString}")
 
 #run a dedicated selenium session to download everything
 if inputType == "profile":
